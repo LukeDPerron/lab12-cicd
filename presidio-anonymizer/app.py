@@ -94,8 +94,8 @@ class Server:
             return Response(
                 deanonymized_response.to_json(), mimetype="application/json"
             )
-
-        @self.app.route("/genz", methods=["GET"])
+        
+        @self.app.route("/genz", methods=["POST"])
         def genz() -> Response:
             content = request.get_json()
             if not content:
