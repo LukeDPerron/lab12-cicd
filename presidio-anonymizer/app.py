@@ -7,7 +7,7 @@ from pathlib import Path
 
 from flask import Flask, Response, jsonify, request
 from presidio_anonymizer import AnonymizerEngine, DeanonymizeEngine
-from presidio_anonymizer.entities import InvalidParamError
+from presidio_anonymizer.entities import InvalidParamError, OperatorConfig
 from presidio_anonymizer.services.app_entities_convertor import AppEntitiesConvertor
 from werkzeug.exceptions import BadRequest, HTTPException
 
@@ -39,6 +39,15 @@ class Server:
         self.anonymizer = AnonymizerEngine()
         self.deanonymize = DeanonymizeEngine()
         self.logger.info(WELCOME_MESSAGE)
+
+        @self.app.route("/genz-preview")
+        def genzPreview():  # noqa: N802
+            example = {
+            "example": "Call Emily at 577-988-1234",
+            "example output": "Call GOAT at vibe check",
+            "description": "Example output of the genz anonymizer."
+            }
+            return jsonify(example)
 
         @self.app.route("/health")
         def health() -> str:
@@ -85,6 +94,30 @@ class Server:
             return Response(
                 deanonymized_response.to_json(), mimetype="application/json"
             )
+
+        @self.app.route("/genz", methods=["POST"])
+        def genz() -> Response:
+            content = request.get_json()
+            if not content:
+                raise BadRequest("Invalid request json")
+
+            text = content.get("text", "")
+
+            genz_config = {
+                "DEFAULT": OperatorConfig(operator_name="genz", params={})
+            }
+
+            analyzer_results = AppEntitiesConvertor.analyzer_results_from_json(
+                content.get("analyzer_results")
+            )
+
+            anonymized = self.anonymizer.anonymize(
+                text=text,
+                analyzer_results=analyzer_results,
+                operators=genz_config,
+            )
+
+            return Response(anonymized.to_json(), mimetype="application/json")
 
         @self.app.route("/anonymizers", methods=["GET"])
         def anonymizers():
